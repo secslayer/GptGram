@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GptGram</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #343a40;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #212529;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr; /* Agent management on left, interaction/stats on right */
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .panel {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            color: #495057;
+        }
+        .form-group textarea {
+            resize: vertical; /* Allow vertical resizing */
+            min-height: 60px;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+            width: 100%; /* Full width buttons for forms */
+            box-sizing: border-box;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .agent-list-container {
+            margin-top: 25px; /* Spacing between create form and list */
+            overflow-y: auto; /* Enable scrolling for agent list */
+            max-height: 400px; /* Max height for scrollable list */
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .agent-card {
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fcfdfe;
+        }
+        .agent-card h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        .agent-card p {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+            color: #555;
+        }
+        #queryResult {
+            background-color: #e9f7ef; /* Light green for success/results */
+            border: 1px solid #d4edda;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 25px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.95em;
+        }
+        #queryResult h3 { color: #28a745; } /* Green heading for results */
+        #queryResult h4 { margin-top: 15px; margin-bottom: 10px; color: #6c757d; }
+        #queryResult ul { list-style: none; padding-left: 0; }
+        #queryResult li { margin-bottom: 5px; background-color: #f3fcf5; padding: 8px; border-left: 3px solid #28a745; }
+
+        #stats-panel {
+            margin-top: 20px;
+            padding-top: 25px;
+            border-top: 1px solid #eee; /* Separator for stats */
+        }
+        #stats-panel ul {
+            list-style: none;
+            padding: 0;
+        }
+        #stats-panel li {
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        .error {
+            color: #dc3545; /* Red for errors */
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .message {
+            color: #28a745; /* Green for success messages */
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr; /* Stack columns on smaller screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>GptGram</h1>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Agent Management</h2>
+            <div class="form-section">
+                <h3>Create New Agent</h3>
+                <div class="form-group">
+                    <label for="agentName">Name:</label>
+                    <input type="text" id="agentName" placeholder="e.g., CodeHelper">
+                </div>
+                <div class="form-group">
+                    <label for="agentDescription">Description:</label>
+                    <textarea id="agentDescription" rows="2" placeholder="e.g., An agent that helps with programming questions."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="agentSpecialization">Specialization (keywords, comma-separated):</label>
+                    <input type="text" id="agentSpecialization" placeholder="e.g., Python, JavaScript, data structures">
+                </div>
+                <div class="form-group">
+                    <label for="agentModel">Ollama Model:</label>
+                    <input type="text" id="agentModel" value="llama2" placeholder="e.g., llama2, mistral">
+                </div>
+                <button class="button" onclick="createAgent()">Create Agent</button>
+                <p id="createAgentMessage" class="message"></p>
+            </div>
+
+            <div class="agent-list-container">
+                <h3>Existing Agents</h3>
+                <div id="agentList">
+                    <p>Loading agents...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Agent Interaction</h2>
+            <div class="form-section">
+                <h3>Query an Agent</h3>
+                <div class="form-group">
+                    <label for="selectAgent">Select Agent:</label>
+                    <select id="selectAgent">
+                        <option value="">-- Select an Agent --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="queryText">Query:</label>
+                    <textarea id="queryText" rows="4" placeholder="Enter your query here..."></textarea>
+                </div>
+                <button class="button" onclick="querySelectedAgent()">Send Query</button>
+            </div>
+
+            <div id="queryResult">
+                <h3>Query Result</h3>
+            </div>
+
+            <div id="stats-panel">
+                <h2>Platform Statistics</h2>
+                <ul>
+                    <li><strong>Total Agents:</strong> <span id="totalAgents">0</span></li>
+                    <li><strong>Total Connections:</strong> <span id="totalConnections">0</span></li>
+                    <li><strong>Total Queries:</strong> <span id="totalQueries">0</span></li>
+                </ul>
+                <h3>Top Collaborating Agents (Source)</h3>
+                <ul id="topSourceAgents"><li>No data</li></ul>
+                <h3>Top Collaborated-With Agents (Target)</h3>
+                <ul id="topTargetAgents"><li>No data</li></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = ''; // Relative path, Flask serves from root
+
+        async function fetchAgents() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/agents`);
+                const agents = await response.json();
+                const agentListDiv = document.getElementById('agentList');
+                const selectAgentDropdown = document.getElementById('selectAgent');
+                agentListDiv.innerHTML = '';
+                selectAgentDropdown.innerHTML = '<option value="">-- Select an Agent --</option>';
+
+                if (agents.length === 0) {
+                    agentListDiv.innerHTML = '<p>No agents created yet.</p>';
+                    return;
+                }
+
+                agents.forEach(agent => {
+                    const card = document.createElement('div');
+                    card.className = 'agent-card';
+                    card.innerHTML = `
+                        <h3>${agent.name}</h3>
+                        <p><strong>ID:</strong> ${agent.id.substring(0, 8)}...</p>
+                        <p><strong>Description:</strong> ${agent.description}</p>
+                        <p><strong>Specialization:</strong> ${agent.specialization}</p>
+                        <p><strong>Model:</strong> ${agent.model_config.model}</p>
+                        <p><strong>Created:</strong> ${new Date(agent.created_at).toLocaleString()}</p>
+                    `;
+                    agentListDiv.appendChild(card);
+
+                    const option = document.createElement('option');
+                    option.value = agent.id;
+                    option.textContent = agent.name;
+                    selectAgentDropdown.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching agents:', error);
+                document.getElementById('agentList').innerHTML = '<p class="error">Error loading agents. Check server console.</p>';
+            }
+        }
+
+        async function createAgent() {
+            const name = document.getElementById('agentName').value;
+            const description = document.getElementById('agentDescription').value;
+            const specialization = document.getElementById('agentSpecialization').value;
+            const model = document.getElementById('agentModel').value;
+            const messageDiv = document.getElementById('createAgentMessage');
+
+            messageDiv.textContent = ''; // Clear previous messages
+            messageDiv.className = 'message'; // Reset class
+
+            if (!name || !specialization || !model) {
+                messageDiv.textContent = 'Please fill in all required fields: Name, Specialization, and Ollama Model.';
+                messageDiv.className = 'error';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/create_agent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        specialization,
+                        model_config: { model }
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    messageDiv.textContent = `Agent created successfully! ID: ${data.agent_id.substring(0, 8)}...`;
+                    document.getElementById('agentName').value = '';
+                    document.getElementById('agentDescription').value = '';
+                    document.getElementById('agentSpecialization').value = '';
+                    // No need to reset model input, it has a default
+                    fetchAgents(); // Refresh agent list
+                    fetchStats(); // Refresh stats
+                } else {
+                    messageDiv.textContent = `Error: ${data.error || 'Failed to create agent.'}`;
+                    messageDiv.className = 'error';
+                }
+            } catch (error) {
+                console.error('Error creating agent:', error);
+                messageDiv.textContent = 'An error occurred while creating the agent. Check server console.';
+                messageDiv.className = 'error';
+            }
+        }
+
+        async function querySelectedAgent() {
+            const agentId = document.getElementById('selectAgent').value;
+            const queryText = document.getElementById('queryText').value;
+            const queryResultDiv = document.getElementById('queryResult');
+            queryResultDiv.innerHTML = '<p>Sending query...</p>';
+            queryResultDiv.className = ''; // Clear previous styling
+
+            if (!agentId) {
+                queryResultDiv.innerHTML = '<p class="error">Please select an agent.</p>';
+                return;
+            }
+            if (!queryText) {
+                queryResultDiv.innerHTML = '<p class="error">Please enter a query.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/agent/${agentId}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: queryText })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    let resultHtml = `<h3>Query Result from ${document.getElementById('selectAgent').options[document.getElementById('selectAgent').selectedIndex].text}</h3>`;
+                    resultHtml += `<p><strong>Query:</strong> ${data.query}</p>`;
+                    resultHtml += `<p><strong>Response:</strong> ${data.response}</p>`;
+                    resultHtml += `<p><strong>Confidence:</strong> <span style="font-weight: bold; color: ${data.confidence < 0.5 ? '#dc3545' : '#28a745'};">${data.confidence.toFixed(2)}</span></p>`;
+                    resultHtml += `<p><strong>Collaboration Used:</strong> <span style="font-weight: bold; color: ${data.collaboration_used ? '#28a745' : '#6c757d'};">${data.collaboration_used ? 'Yes' : 'No'}</span></p>`;
+
+                    if (data.collaboration_used && data.collaborative_responses && data.collaborative_responses.length > 0) {
+                        resultHtml += `<h4>Collaborating Agents:</h4><ul>`;
+                        data.collaborative_responses.forEach(collab => {
+                            resultHtml += `<li><strong>${collab.agent_name}</strong> (Similarity: ${collab.similarity.toFixed(2)}): ${collab.response.substring(0, Math.min(collab.response.length, 200))}...</li>`; // Show snippet
+                        });
+                        resultHtml += `</ul>`;
+                    }
+                    queryResultDiv.innerHTML = resultHtml;
+                    queryResultDiv.className = 'panel'; // Apply panel styling for results too
+                    fetchStats(); // Refresh stats after query
+                } else {
+                    queryResultDiv.innerHTML = `<p class="error">Error: ${data.error || 'Failed to query agent.'}</p>`;
+                }
+            } catch (error) {
+                console.error('Error querying agent:', error);
+                queryResultDiv.innerHTML = '<p class="error">An error occurred while querying the agent. Check server console and Ollama status.</p>';
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stats`);
+                const stats = await response.json();
+
+                document.getElementById('totalAgents').textContent = stats.total_agents;
+                document.getElementById('totalConnections').textContent = stats.total_connections;
+                document.getElementById('totalQueries').textContent = stats.total_queries;
+
+                const topSourceAgentsList = document.getElementById('topSourceAgents');
+                topSourceAgentsList.innerHTML = '';
+                if (stats.top_source_agents.length > 0) {
+                    stats.top_source_agents.forEach(item => {
+                        topSourceAgentsList.innerHTML += `<li>${item.agent_name}: ${item.count}</li>`;
+                    });
+                } else {
+                    topSourceAgentsList.innerHTML = '<li>No data</li>';
+                }
+
+                const topTargetAgentsList = document.getElementById('topTargetAgents');
+                topTargetAgentsList.innerHTML = '';
+                if (stats.top_target_agents.length > 0) {
+                    stats.top_target_agents.forEach(item => {
+                        topTargetAgentsList.innerHTML += `<li>${item.agent_name}: ${item.count}</li>`;
+                    });
+                } else {
+                    topTargetAgentsList.innerHTML = '<li>No data</li>';
+                }
+
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                // No specific div for stats error, update panel directly or log.
+            }
+        }
+
+        // Initial load and periodic refresh
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAgents();
+            fetchStats();
+            setInterval(fetchStats, 5001); // Refresh stats every 5 seconds
+        });
+    </script>
+</body>
+</html>
